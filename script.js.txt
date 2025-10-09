@@ -1,0 +1,208 @@
+// Obtener elementos del DOM
+const form = document.getElementById('fuel-form');
+const odometerInput = document.getElementById('odometer');
+const litersInput = document.getElementById('liters');
+const priceInput = document.getElementById('price');
+const totalCostInput = document.getElementById('total-cost');
+const historyBody = document.getElementById('history-body');
+const lastKmLOutput = document.getElementById('last-km-l');
+const avgKmLOutput = document.getElementById('avg-km-l');
+const clearDataBtn = document.getElementById('clear-data-btn');
+
+// Variable para almacenar el historial de cargas
+let fuelLog = [];
+
+// Inicializar el gráfico
+const chartCanvas = document.getElementById('performance-chart');
+let fuelChart = new Chart(chartCanvas, {
+    type: 'line',
+    data: {
+        labels: [], // Fechas de las cargas
+        datasets: [{
+            label: 'Rendimiento (km/L)',
+            data: [], // Valores de km/L
+            borderColor: 'rgb(40, 167, 69)', // Color verde
+            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+            tension: 0.1,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: false,
+                title: {
+                    display: true,
+                    text: 'Rendimiento (km/L)'
+                }
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: 'Carga N°'
+                }
+            }
+        }
+    }
+});
+
+// Función para cargar los datos desde LocalStorage
+function loadData() {
+    const storedLog = localStorage.getItem('fuelLog');
+    if (storedLog) {
+        fuelLog = JSON.parse(storedLog);
+    }
+}
+
+// Función para guardar los datos en LocalStorage
+function saveData() {
+    localStorage.setItem('fuelLog', JSON.stringify(fuelLog));
+}
+
+// Función para calcular y registrar el rendimiento (km/L)
+function calculatePerformance(newEntry) {
+    // Necesitamos al menos dos entradas para calcular el rendimiento
+    if (fuelLog.length < 1) {
+        newEntry.kmL = 0; // Primer registro, no hay rendimiento previo
+        return;
+    }
+
+    // El rendimiento se calcula entre la carga actual y la ANTERIOR
+    // Asumimos que el tanque se llenó en ambas cargas.
+    
+    // El 'último rendimiento' es el de la carga anterior a la nueva.
+    const lastEntry = fuelLog[fuelLog.length - 1];
+
+    // Distancia recorrida desde la última carga:
+    const distance = newEntry.odometer - lastEntry.odometer;
+
+    // Litros consumidos (los litros cargados en la última carga completan el tanque):
+    const litersUsed = lastEntry.liters; 
+
+    // Rendimiento: Distancia / Litros Usados
+    const kmL = distance / litersUsed;
+    
+    // ¡IMPORTANTE! Asignamos el kmL a la *última entrada* (la que ya está en el log), 
+    // porque es la que registra la gasolina que se *gastó* para hacer esa distancia.
+    lastEntry.kmL = parseFloat(kmL.toFixed(2));
+}
+
+// Función para manejar el envío del formulario
+form.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const odometer = parseFloat(odometerInput.value);
+    const liters = parseFloat(litersInput.value);
+    const price = parseFloat(priceInput.value);
+
+    // Validación simple
+    if (isNaN(odometer) || isNaN(liters) || isNaN(price) || odometer <= 0 || liters <= 0 || price <= 0) {
+        alert("Por favor, ingresa valores válidos en todos los campos.");
+        return;
+    }
+
+    const newEntry = {
+        date: new Date().toLocaleDateString('es-ES'),
+        timestamp: Date.now(),
+        odometer: odometer,
+        liters: liters,
+        price: price,
+        totalCost: parseFloat((liters * price).toFixed(2)),
+        kmL: 0 // Se calculará después de la siguiente carga
+    };
+
+    // Calcular el rendimiento para la *entrada anterior* (si existe)
+    // El rendimiento de la carga actual se calcula en la siguiente carga.
+    calculatePerformance(newEntry);
+    
+    // Añadir la nueva entrada al log
+    fuelLog.push(newEntry);
+
+    // Guardar y actualizar la vista
+    saveData();
+    updateUI();
+
+    // Resetear el formulario (excepto el kilometraje si quieres que se mantenga)
+    form.reset();
+    totalCostInput.value = '';
+    odometerInput.focus();
+});
+
+// Actualización automática del costo total al cambiar litros o precio
+litersInput.addEventListener('input', updateCost);
+priceInput.addEventListener('input', updateCost);
+
+function updateCost() {
+    const liters = parseFloat(litersInput.value) || 0;
+    const price = parseFloat(priceInput.value) || 0;
+    totalCostInput.value = (liters * price).toFixed(2);
+}
+
+// Función principal para actualizar la interfaz de usuario (tabla, promedios, gráfico)
+function updateUI() {
+    // 1. Limpiar y generar la tabla de historial
+    historyBody.innerHTML = '';
+    let totalKmL = 0;
+    let validKmLCount = 0;
+
+    // Recorrer el historial A LA INVERSA para mostrar las entradas más recientes primero
+    for (let i = fuelLog.length - 1; i >= 0; i--) {
+        const entry = fuelLog[i];
+
+        const row = historyBody.insertRow();
+        
+        row.insertCell(0).textContent = entry.date;
+        row.insertCell(1).textContent = entry.odometer.toFixed(1) + ' km';
+        row.insertCell(2).textContent = entry.liters.toFixed(2) + ' L';
+        row.insertCell(3).textContent = '$ ' + entry.price.toFixed(2);
+        
+        const kmLCell = row.insertCell(4);
+        
+        if (entry.kmL > 0) {
+            kmLCell.textContent = entry.kmL.toFixed(2) + ' km/L';
+            totalKmL += entry.kmL;
+            validKmLCount++;
+        } else {
+            kmLCell.textContent = 'Pendiente'; // Para el primer registro o el último
+        }
+    }
+
+    // 2. Actualizar promedios
+    const avgKmL = validKmLCount > 0 ? totalKmL / validKmLCount : 0;
+    avgKmLOutput.textContent = avgKmL.toFixed(2) + ' km/L';
+    
+    const lastValidEntry = fuelLog.slice().reverse().find(entry => entry.kmL > 0);
+    lastKmLOutput.textContent = lastValidEntry ? lastValidEntry.kmL.toFixed(2) + ' km/L' : 'N/A';
+
+    // 3. Actualizar el gráfico
+    const chartLabels = [];
+    const chartData = [];
+    
+    // Usar solo las entradas con rendimiento calculado para el gráfico
+    fuelLog.forEach((entry, index) => {
+        if (entry.kmL > 0) {
+            chartLabels.push(`Carga ${index + 1} (${entry.date})`);
+            chartData.push(entry.kmL);
+        }
+    });
+
+    fuelChart.data.labels = chartLabels;
+    fuelChart.data.datasets[0].data = chartData;
+    fuelChart.update();
+}
+
+// Función para borrar todos los datos
+clearDataBtn.addEventListener('click', () => {
+    if (confirm("¿Estás seguro de que quieres borrar todo el historial de cargas? Esta acción es irreversible.")) {
+        localStorage.removeItem('fuelLog');
+        fuelLog = [];
+        updateUI();
+        alert("Historial borrado.");
+    }
+});
+
+// Cargar datos y actualizar la interfaz al iniciar
+loadData();
+updateUI();

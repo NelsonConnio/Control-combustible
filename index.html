@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rastreador de Rendimiento de Combustible ⛽</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Rastreador de Combustible 🚗</h1>
+
+        <section id="input-form">
+            <h2>Registrar Nueva Carga</h2>
+            <form id="fuel-form">
+                <label for="odometer">Kilometraje Actual (km):</label>
+                <input type="number" id="odometer" required min="0" step="0.1">
+
+                <label for="liters">Litros Cargados (L):</label>
+                <input type="number" id="liters" required min="0.01" step="0.01">
+
+                <label for="price">Precio por Litro ($/L):</label>
+                <input type="number" id="price" required min="0.01" step="0.01">
+
+                <label for="total-cost">Costo Total de la Carga ($):</label>
+                <input type="number" id="total-cost" disabled> 
+
+                <button type="submit">Registrar Carga</button>
+            </form>
+        </section>
+        
+        <hr>
+
+        <section id="results-and-history">
+            <h2>Rendimiento Promedio</h2>
+            <p>Último Rendimiento: <strong id="last-km-l">0.00 km/L</strong></p>
+            <p>Rendimiento Histórico Promedio: <strong id="avg-km-l">0.00 km/L</strong></p>
+        </section>
+
+        <hr>
+
+        <section id="chart-section">
+            <h2>Gráfico de Rendimiento vs. Tiempo</h2>
+            <div class="chart-container">
+                <canvas id="performance-chart"></canvas>
+            </div>
+            <button id="clear-data-btn" class="secondary-btn">Borrar Historial</button>
+        </section>
+
+        <section id="history-table">
+            <h2>Historial de Cargas</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>KM Total</th>
+                        <th>Litros</th>
+                        <th>Costo/L</th>
+                        <th>Rendimiento (km/L)</th>
+                    </tr>
+                </thead>
+                <tbody id="history-body">
+                    </tbody>
+            </table>
+        </section>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
