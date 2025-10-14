@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rastreador de Rendimiento de Combustible ⛽</title>
     <link rel="stylesheet" href="style.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        // ¡REEMPLAZA ESTOS VALORES CON TUS CLAVES REALES DE SUPABASE!
+        const SUPABASE_URL = 'TU_PROJECT_URL_AQUÍ'; 
+        const SUPABASE_ANON_KEY = 'TU_ANON_KEY_AQUÍ';
+
+        // 3. Inicializar el cliente de Supabase
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    </script>
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -68,4 +80,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>
