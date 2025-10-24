@@ -3,82 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rastreador de Rendimiento de Combustible ⛽</title>
+    <title>Control de carga de combustible</title>
     <link rel="stylesheet" href="style.css">
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
         // ¡REEMPLAZA ESTOS VALORES CON TUS CLAVES REALES DE SUPABASE!
-        const SUPABASE_URL = 'TU_PROJECT_URL_AQUÍ'; 
-        const SUPABASE_ANON_KEY = 'TU_ANON_KEY_AQUÍ';
+        const SUPABASE_URL = 'https://ucxzxkrokasvgphwvxic.supabase.co'; 
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjeHp4a3Jva2FzdmdwaHd2eGljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAzODk1NDksImV4cCI6MjA3NTk2NTU0OX0.5PZcwVC84kSSPcGs576oCmAWAMtgRtTBknHaWQnY9F8';
 
-        // 3. Inicializar el cliente de Supabase
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    </script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+         // 3. Inicializar el cliente de Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+     </script>
 </head>
 <body>
-    <div class="container">
-        <h1>Rastreador de Combustible 🚗</h1>
+    <header>
+        <h1>Control de Cargas de Combustible</h1>
+    </header>
 
-        <section id="input-form">
-            <h2>Registrar Nueva Carga</h2>
-            <form id="fuel-form">
-                <label for="odometer">Kilometraje Actual (km):</label>
-                <input type="number" id="odometer" required min="0" step="0.1">
-
-                <label for="liters">Litros Cargados (L):</label>
-                <input type="number" id="liters" required min="0.01" step="0.01">
-
-                <label for="price">Precio por Litro ($/L):</label>
-                <input type="number" id="price" required min="0.01" step="0.01">
-
-                <label for="total-cost">Costo Total de la Carga ($):</label>
-                <input type="number" id="total-cost" disabled> 
-
-                <button type="submit">Registrar Carga</button>
-            </form>
-        </section>
+    <div id="app-container">
         
-        <hr>
+        <aside id="sidebar">
+            <nav>
+                <button id="nav-carga" class="nav-button">Carga de Datos</button>
+                <button id="nav-historico" class="nav-button">Histórico</button>
+                <button id="nav-graficas" class="nav-button">Gráficas</button>
+            </nav>
+        </aside>
 
-        <section id="results-and-history">
-            <h2>Rendimiento Promedio</h2>
-            <p>Último Rendimiento: <strong id="last-km-l">0.00 km/L</strong></p>
-            <p>Rendimiento Histórico Promedio: <strong id="avg-km-l">0.00 km/L</strong></p>
-        </section>
+        <main id="content-area">
+            
+            <section id="view-carga" class="content-view">
+                <h2>Carga de Información</h2>
+                <form id="task-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="task-date">Fecha:</label>
+                            <input type="date" id="task-date" required>
+                        </div> 	
+                        <div class="form-group">
+                            <label for="task-km">Km:</label>
+                            <input type="number" id="task-km" required> 
+                        </div>
+                    </div>
 
-        <hr>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="task-liters">Litros:</label>
+                            <input type="number" id="task-liters" step="0.001" required>
+                        </div> 	
+                        <div class="form-group">
+                            <label for="task-price">Precio ($/Lt):</label>
+                            <input type="number" id="task-price" step="0.001" required>
+                        </div>
+                    </div>
+                                    
+                    <button type="submit">Guardar Carga</button>
+                </form>
+            </section>
 
-        <section id="chart-section">
-            <h2>Gráfico de Rendimiento vs. Tiempo</h2>
-            <div class="chart-container">
-                <canvas id="performance-chart"></canvas>
-            </div>
-            <button id="clear-data-btn" class="secondary-btn">Borrar Historial</button>
-        </section>
+            <section id="view-historico" class="content-view">
+                <h2>Histórico de Cargas</h2>
+                <section id="list-section">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Km</th>
+                                <th>Litros</th>
+                                <th>Precio ($/Lt)</th>
+                                <th>Costo Total</th>
+                                <th>Acciones</th> 
+                            </tr>
+                        </thead>
+                        <tbody id="task-list-body">
+                            </tbody>
+                    </table>
+                </section>
+            </section>
+            
+            <section id="view-graficas" class="content-view">
+                <h2>Gráficas de Consumo</h2>
+                <p>Aquí se mostrarán los gráficos (a implementar más tarde).</p>
+            </section>
 
-        <section id="history-table">
-            <h2>Historial de Cargas</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Fecha</th>
-                        <th>KM Total</th>
-                        <th>Litros</th>
-                        <th>Costo/L</th>
-                        <th>Rendimiento (km/L)</th>
-                    </tr>
-                </thead>
-                <tbody id="history-body">
-                    </tbody>
-            </table>
-        </section>
+        </main>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script.js"></script> 
 </body>
-
 </html>
