@@ -2,12 +2,12 @@
 
 // Referencias del DOM
 const form = document.getElementById('task-form');
-// taskNameInput ahora se llama taskKmInput y corresponde al Km
+// taskKmInput corresponde al campo Km (que se guarda en la columna 'task_name' de Supabase)
 const taskKmInput = document.getElementById('task-km'); 
 const taskDateInput = document.getElementById('task-date');
 const taskListBody = document.getElementById('task-list-body');
 
-// Nuevos campos para Litros y Precio
+// Campos de Combustible
 const taskLitersInput = document.getElementById('task-liters'); 
 const taskPriceInput = document.getElementById('task-price'); 
 
@@ -93,12 +93,12 @@ async function loadAndProcessData() {
         const { data, error } = await supabase
             .from(TABLE_NAME)
             .select('id, created_at, task_date, task_name, litros, precio') 
-            .order('created_at', { ascending: false }) 
-            .limit(ROWS_TO_SHOW); 
+            .order('created_at', { ascending: false }) // Los más recientes primero
+            .limit(ROWS_TO_SHOW); // Limita a los últimos 50
 
         if (error) throw error;
 
-        updateUI(data); 
+        updateUI(data); // Llama a la función para pintar la lista
     } catch (error) {
         console.error("Error al cargar datos de Supabase:", error.message);
         taskListBody.innerHTML = '<tr><td colspan="6">Error al cargar el histórico. Verifica tus claves de Supabase.</td></tr>';
@@ -111,10 +111,10 @@ async function loadAndProcessData() {
 // ----------------------------------------------------------------
 
 function updateUI(data) {
-    taskListBody.innerHTML = ''; 
+    taskListBody.innerHTML = ''; // Limpia el contenido anterior
 
     data.forEach((entry, index) => {
-        const isEditable = index < ROWS_TO_EDIT; 
+        const isEditable = index < ROWS_TO_EDIT; // Los primeros 5 son editables
         const row = taskListBody.insertRow();
         row.setAttribute('data-id', entry.id);
 
@@ -136,7 +136,7 @@ function updateUI(data) {
                     `<button class="btn-edit" data-id="${entry.id}">✏️ Editar</button>
                      <button class="btn-delete" data-id="${entry.id}">🗑️ Eliminar</button>`
                     : 
-                    `<span class="no-actions">Solo Lectura</span>` 
+                    `<span class="no-actions">Solo Lectura</span>` // Texto para el resto de registros
                 }
             </td>
         `;
@@ -178,7 +178,7 @@ async function deleteEntry(id) {
         if (error) throw error;
 
         console.log(`Registro ID ${id} eliminado con éxito.`);
-        loadAndProcessData(); 
+        loadAndProcessData(); // Recargar la tabla
     } catch (error) {
         console.error("Error al eliminar el registro: ", error.message);
         alert("Error al eliminar el registro. Revisa la consola.");
