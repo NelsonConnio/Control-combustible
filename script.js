@@ -15,7 +15,7 @@ const taskPriceInput = document.getElementById('task-price');
 const navButtons = document.querySelectorAll('.nav-button');
 const contentViews = document.querySelectorAll('.content-view');
 
-const TABLE_NAME = 'simple_tasks'; // Nombre de tu tabla en Supabase
+const TABLE_NAME = 'TABLE_NAME'; // Nombre de tu tabla en Supabase
 const ROWS_TO_SHOW = 50; // Total de registros a mostrar
 const ROWS_TO_EDIT = 5;  // Cantidad de registros editables (los más recientes)
 
@@ -351,3 +351,4 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Muestra el Histórico por defecto (y carga los datos)
     showView('view-historico', 'nav-historico'); 
 });
+
