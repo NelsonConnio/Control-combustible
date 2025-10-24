@@ -1,208 +1,353 @@
-// Obtener elementos del DOM
-const form = document.getElementById('fuel-form');
-const odometerInput = document.getElementById('odometer');
-const litersInput = document.getElementById('liters');
-const priceInput = document.getElementById('price');
-const totalCostInput = document.getElementById('total-cost');
-const historyBody = document.getElementById('history-body');
-const lastKmLOutput = document.getElementById('last-km-l');
-const avgKmLOutput = document.getElementById('avg-km-l');
-const clearDataBtn = document.getElementById('clear-data-btn');
+// Asegúrate de que la constante 'supabase' está definida en tu index.html.
 
-// Variable para almacenar el historial de cargas
-let fuelLog = [];
+// Referencias del DOM
+const form = document.getElementById('task-form');
+// taskNameInput ahora se llama taskKmInput y corresponde al Km
+const taskKmInput = document.getElementById('task-km'); 
+const taskDateInput = document.getElementById('task-date');
+const taskListBody = document.getElementById('task-list-body');
 
-// Inicializar el gráfico
-const chartCanvas = document.getElementById('performance-chart');
-let fuelChart = new Chart(chartCanvas, {
-    type: 'line',
-    data: {
-        labels: [], // Fechas de las cargas
-        datasets: [{
-            label: 'Rendimiento (km/L)',
-            data: [], // Valores de km/L
-            borderColor: 'rgb(40, 167, 69)', // Color verde
-            backgroundColor: 'rgba(40, 167, 69, 0.1)',
-            tension: 0.1,
-            fill: true
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-            y: {
-                beginAtZero: false,
-                title: {
-                    display: true,
-                    text: 'Rendimiento (km/L)'
-                }
-            },
-            x: {
-                title: {
-                    display: true,
-                    text: 'Carga N°'
-                }
-            }
-        }
-    }
-});
+// Nuevos campos para Litros y Precio
+const taskLitersInput = document.getElementById('task-liters'); 
+const taskPriceInput = document.getElementById('task-price'); 
 
-// Función para cargar los datos desde LocalStorage
-function loadData() {
-    const storedLog = localStorage.getItem('fuelLog');
-    if (storedLog) {
-        fuelLog = JSON.parse(storedLog);
+// Vistas y Navegación
+const navButtons = document.querySelectorAll('.nav-button');
+const contentViews = document.querySelectorAll('.content-view');
+
+const TABLE_NAME = 'simple_tasks'; // Nombre de tu tabla en Supabase
+const ROWS_TO_SHOW = 50; // Total de registros a mostrar
+const ROWS_TO_EDIT = 5;  // Cantidad de registros editables (los más recientes)
+
+let currentlyEditingId = null;
+
+// ----------------------------------------------------------------
+// FUNCIÓN: ESTABLECER FECHA ACTUAL DE LA MÁQUINA
+// ----------------------------------------------------------------
+function setTodayDate() {
+    const today = new Date();
+    // Formato YYYY-MM-DD necesario para el input[type="date"]
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    
+    if(taskDateInput) {
+        taskDateInput.value = `${year}-${month}-${day}`;
     }
 }
 
-// Función para guardar los datos en LocalStorage
-function saveData() {
-    localStorage.setItem('fuelLog', JSON.stringify(fuelLog));
-}
 
-// Función para calcular y registrar el rendimiento (km/L)
-function calculatePerformance(newEntry) {
-    // Necesitamos al menos dos entradas para calcular el rendimiento
-    if (fuelLog.length < 1) {
-        newEntry.kmL = 0; // Primer registro, no hay rendimiento previo
-        return;
-    }
+// ----------------------------------------------------------------
+// GESTIÓN DE VISTAS (NAVEGACIÓN)
+// ----------------------------------------------------------------
 
-    // El rendimiento se calcula entre la carga actual y la ANTERIOR
-    // Asumimos que el tanque se llenó en ambas cargas.
-    
-    // El 'último rendimiento' es el de la carga anterior a la nueva.
-    const lastEntry = fuelLog[fuelLog.length - 1];
-
-    // Distancia recorrida desde la última carga:
-    const distance = newEntry.odometer - lastEntry.odometer;
-
-    // Litros consumidos (los litros cargados en la última carga completan el tanque):
-    const litersUsed = lastEntry.liters; 
-
-    // Rendimiento: Distancia / Litros Usados
-    const kmL = distance / litersUsed;
-    
-    // ¡IMPORTANTE! Asignamos el kmL a la *última entrada* (la que ya está en el log), 
-    // porque es la que registra la gasolina que se *gastó* para hacer esa distancia.
-    lastEntry.kmL = parseFloat(kmL.toFixed(2));
-}
-
-// Función para manejar el envío del formulario
-form.addEventListener('submit', function(e) {
-    e.preventDefault();
-
-    const odometer = parseFloat(odometerInput.value);
-    const liters = parseFloat(litersInput.value);
-    const price = parseFloat(priceInput.value);
-
-    // Validación simple
-    if (isNaN(odometer) || isNaN(liters) || isNaN(price) || odometer <= 0 || liters <= 0 || price <= 0) {
-        alert("Por favor, ingresa valores válidos en todos los campos.");
-        return;
-    }
-
-    const newEntry = {
-        date: new Date().toLocaleDateString('es-ES'),
-        timestamp: Date.now(),
-        odometer: odometer,
-        liters: liters,
-        price: price,
-        totalCost: parseFloat((liters * price).toFixed(2)),
-        kmL: 0 // Se calculará después de la siguiente carga
-    };
-
-    // Calcular el rendimiento para la *entrada anterior* (si existe)
-    // El rendimiento de la carga actual se calcula en la siguiente carga.
-    calculatePerformance(newEntry);
-    
-    // Añadir la nueva entrada al log
-    fuelLog.push(newEntry);
-
-    // Guardar y actualizar la vista
-    saveData();
-    updateUI();
-
-    // Resetear el formulario (excepto el kilometraje si quieres que se mantenga)
-    form.reset();
-    totalCostInput.value = '';
-    odometerInput.focus();
-});
-
-// Actualización automática del costo total al cambiar litros o precio
-litersInput.addEventListener('input', updateCost);
-priceInput.addEventListener('input', updateCost);
-
-function updateCost() {
-    const liters = parseFloat(litersInput.value) || 0;
-    const price = parseFloat(priceInput.value) || 0;
-    totalCostInput.value = (liters * price).toFixed(2);
-}
-
-// Función principal para actualizar la interfaz de usuario (tabla, promedios, gráfico)
-function updateUI() {
-    // 1. Limpiar y generar la tabla de historial
-    historyBody.innerHTML = '';
-    let totalKmL = 0;
-    let validKmLCount = 0;
-
-    // Recorrer el historial A LA INVERSA para mostrar las entradas más recientes primero
-    for (let i = fuelLog.length - 1; i >= 0; i--) {
-        const entry = fuelLog[i];
-
-        const row = historyBody.insertRow();
-        
-        row.insertCell(0).textContent = entry.date;
-        row.insertCell(1).textContent = entry.odometer.toFixed(1) + ' km';
-        row.insertCell(2).textContent = entry.liters.toFixed(2) + ' L';
-        row.insertCell(3).textContent = '$ ' + entry.price.toFixed(2);
-        
-        const kmLCell = row.insertCell(4);
-        
-        if (entry.kmL > 0) {
-            kmLCell.textContent = entry.kmL.toFixed(2) + ' km/L';
-            totalKmL += entry.kmL;
-            validKmLCount++;
-        } else {
-            kmLCell.textContent = 'Pendiente'; // Para el primer registro o el último
-        }
-    }
-
-    // 2. Actualizar promedios
-    const avgKmL = validKmLCount > 0 ? totalKmL / validKmLCount : 0;
-    avgKmLOutput.textContent = avgKmL.toFixed(2) + ' km/L';
-    
-    const lastValidEntry = fuelLog.slice().reverse().find(entry => entry.kmL > 0);
-    lastKmLOutput.textContent = lastValidEntry ? lastValidEntry.kmL.toFixed(2) + ' km/L' : 'N/A';
-
-    // 3. Actualizar el gráfico
-    const chartLabels = [];
-    const chartData = [];
-    
-    // Usar solo las entradas con rendimiento calculado para el gráfico
-    fuelLog.forEach((entry, index) => {
-        if (entry.kmL > 0) {
-            chartLabels.push(`Carga ${index + 1} (${entry.date})`);
-            chartData.push(entry.kmL);
-        }
+function showView(viewId, buttonId) {
+    // 1. Ocultar todas las vistas y desactivar todos los botones
+    contentViews.forEach(view => {
+        view.classList.remove('active');
+    });
+    navButtons.forEach(button => {
+        button.classList.remove('active');
     });
 
-    fuelChart.data.labels = chartLabels;
-    fuelChart.data.datasets[0].data = chartData;
-    fuelChart.update();
+    // 2. Mostrar la vista seleccionada y activar el botón
+    const selectedView = document.getElementById(viewId);
+    const selectedButton = document.getElementById(buttonId);
+
+    if (selectedView) {
+        selectedView.classList.add('active');
+    }
+    if (selectedButton) {
+        selectedButton.classList.add('active');
+    }
+    
+    // Si la vista es Histórico, recargar los datos
+    if (viewId === 'view-historico') {
+        loadAndProcessData();
+    }
+    // Si es la vista de carga, asegurar que la fecha esté actualizada
+    if (viewId === 'view-carga') {
+        setTodayDate();
+    }
 }
 
-// Función para borrar todos los datos
-clearDataBtn.addEventListener('click', () => {
-    if (confirm("¿Estás seguro de que quieres borrar todo el historial de cargas? Esta acción es irreversible.")) {
-        localStorage.removeItem('fuelLog');
-        fuelLog = [];
-        updateUI();
-        alert("Historial borrado.");
+// Asignar listeners a los botones del panel
+document.getElementById('nav-carga').addEventListener('click', () => {
+    showView('view-carga', 'nav-carga');
+});
+document.getElementById('nav-historico').addEventListener('click', () => {
+    showView('view-historico', 'nav-historico');
+});
+document.getElementById('nav-graficas').addEventListener('click', () => {
+    showView('view-graficas', 'nav-graficas');
+});
+
+
+// ----------------------------------------------------------------
+// FUNCIÓN PRINCIPAL: CARGAR Y PROCESAR DATOS (ÚLTIMOS 50)
+// ----------------------------------------------------------------
+
+async function loadAndProcessData() {
+    try {
+        // task_name en Supabase corresponde a Km en la UI
+        const { data, error } = await supabase
+            .from(TABLE_NAME)
+            .select('id, created_at, task_date, task_name, litros, precio') 
+            .order('created_at', { ascending: false }) 
+            .limit(ROWS_TO_SHOW); 
+
+        if (error) throw error;
+
+        updateUI(data); 
+    } catch (error) {
+        console.error("Error al cargar datos de Supabase:", error.message);
+        taskListBody.innerHTML = '<tr><td colspan="6">Error al cargar el histórico. Verifica tus claves de Supabase.</td></tr>';
+    }
+}
+
+
+// ----------------------------------------------------------------
+// FUNCIÓN PARA PINTAR LA INTERFAZ DE USUARIO (HISTÓRICO)
+// ----------------------------------------------------------------
+
+function updateUI(data) {
+    taskListBody.innerHTML = ''; 
+
+    data.forEach((entry, index) => {
+        const isEditable = index < ROWS_TO_EDIT; 
+        const row = taskListBody.insertRow();
+        row.setAttribute('data-id', entry.id);
+
+        // Calcula el costo total y formatea los decimales
+        const totalCost = (entry.litros * entry.precio).toFixed(2);
+        const litrosDisplay = entry.litros !== null && entry.litros !== undefined ? parseFloat(entry.litros).toFixed(3) : '0.000';
+        const precioDisplay = entry.precio !== null && entry.precio !== undefined ? parseFloat(entry.precio).toFixed(3) : '0.000';
+        const kmDisplay = entry.task_name || '-'; // task_name es el campo Km
+
+        row.innerHTML = `
+            <td><span class="field" data-column="task_date">${entry.task_date || '-'}</span></td>
+            <td><span class="field" data-column="task_name">${kmDisplay}</span></td>
+            <td><span class="field" data-column="litros">${litrosDisplay}</span></td>
+            <td><span class="field" data-column="precio">${precioDisplay}</span></td>
+            <td>$${totalCost}</td>
+            <td class="actions-cell">
+                ${isEditable ? 
+                    // Botones de acción visibles para los últimos 5
+                    `<button class="btn-edit" data-id="${entry.id}">✏️ Editar</button>
+                     <button class="btn-delete" data-id="${entry.id}">🗑️ Eliminar</button>`
+                    : 
+                    `<span class="no-actions">Solo Lectura</span>` 
+                }
+            </td>
+        `;
+    });
+    
+    attachActionListeners(); 
+}
+
+
+// ----------------------------------------------------------------
+// ASIGNAR LISTENERS Y MANEJO DE ELIMINACIÓN
+// ----------------------------------------------------------------
+
+function attachActionListeners() {
+    document.querySelectorAll('.btn-edit').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const id = e.target.getAttribute('data-id');
+            toggleEditMode(id); 
+        });
+    });
+    
+    document.querySelectorAll('.btn-delete').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const id = e.target.getAttribute('data-id');
+            if (confirm(`¿Estás seguro de que deseas eliminar el registro ID ${id}? Esta acción es irreversible.`)) {
+                deleteEntry(id);
+            }
+        });
+    });
+}
+
+async function deleteEntry(id) {
+    try {
+        const { error } = await supabase
+            .from(TABLE_NAME)
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+
+        console.log(`Registro ID ${id} eliminado con éxito.`);
+        loadAndProcessData(); 
+    } catch (error) {
+        console.error("Error al eliminar el registro: ", error.message);
+        alert("Error al eliminar el registro. Revisa la consola.");
+    }
+}
+
+// ----------------------------------------------------------------
+// EDICIÓN EN LÍNEA (TOGGLE Y GUARDADO)
+// ----------------------------------------------------------------
+
+function toggleEditMode(id) {
+    const row = document.querySelector(`tr[data-id="${id}"]`);
+    if (!row) return;
+
+    if (currentlyEditingId && currentlyEditingId != id) {
+        alert("Por favor, guarda o cancela la edición del registro actual.");
+        return; 
+    }
+    
+    if (row.classList.contains('editing')) {
+        exitEditMode(id, row, true);
+        return;
+    }
+
+    // --- ENTRAMOS EN MODO EDICIÓN ---
+    currentlyEditingId = id;
+    row.classList.add('editing');
+
+    const editableFields = row.querySelectorAll('.field');
+    const actionsCell = row.querySelector('.actions-cell');
+
+    editableFields.forEach(span => {
+        const column = span.getAttribute('data-column');
+        const currentValue = span.textContent.trim().replace('$', ''); 
+        let inputType = 'text';
+        
+        if (column === 'task_date') {
+            inputType = 'date';
+        } else if (column === 'litros' || column === 'precio' || column === 'task_name') {
+            // task_name (Km) y los campos numéricos deben ser editados con input type="number"
+            inputType = 'number';
+        }
+
+        const input = document.createElement('input');
+        input.setAttribute('type', inputType);
+        input.setAttribute('value', currentValue);
+        input.setAttribute('data-column', column);
+        input.setAttribute('required', 'true');
+        
+        if (inputType === 'number') input.setAttribute('step', '0.001');
+
+        span.parentNode.replaceChild(input, span);
+    });
+    
+    // Cambiar botones a Guardar y Cancelar
+    actionsCell.innerHTML = `
+        <button class="btn-save-edit" data-id="${id}">💾 Guardar</button>
+        <button class="btn-cancel-edit" data-id="${id}">❌ Cancelar</button>
+    `;
+    
+    actionsCell.querySelector('.btn-save-edit').addEventListener('click', () => saveEdit(id));
+    actionsCell.querySelector('.btn-cancel-edit').addEventListener('click', () => exitEditMode(id, row, true));
+}
+
+function exitEditMode(id, row, cancel = false) {
+    currentlyEditingId = null;
+    row.classList.remove('editing');
+    
+    if (cancel) {
+        loadAndProcessData(); 
+    }
+}
+
+async function saveEdit(id) {
+    const row = document.querySelector(`tr[data-id="${id}"]`);
+    const inputs = row.querySelectorAll('input');
+    const updatedData = {};
+    let allValid = true;
+
+    inputs.forEach(input => {
+        const column = input.getAttribute('data-column');
+        let value = input.value;
+        
+        if (column === 'litros' || column === 'precio') {
+            value = Math.round(parseFloat(value) * 1000) / 1000;
+            if (isNaN(value) || value <= 0) { 
+                alert(`El campo ${column} debe ser un número positivo.`);
+                allValid = false;
+            }
+        } else if (column === 'task_name') {
+             // Validación simple para Km
+            value = parseInt(value);
+            if (isNaN(value) || value < 0) {
+                 alert(`El campo Km debe ser un número entero no negativo.`);
+                allValid = false;
+            }
+        }
+        updatedData[column] = value;
+    });
+
+    if (!allValid) return; 
+    
+    try {
+        const { error } = await supabase
+            .from(TABLE_NAME)
+            .update(updatedData)
+            .eq('id', id);
+
+        if (error) throw error;
+
+        console.log(`Registro ID ${id} actualizado con éxito.`);
+        
+        exitEditMode(id, row, false); 
+        loadAndProcessData();
+
+    } catch (error) {
+        console.error("Error al actualizar el registro: ", error.message);
+        alert("Error al actualizar el registro. Revisa la consola.");
+    }
+}
+
+
+// ----------------------------------------------------------------
+// MANEJO DE ENVÍO DE FORMULARIO
+// ----------------------------------------------------------------
+
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    try {
+        // Redondeo de valores a 3 decimales antes de guardar
+        const liters = Math.round(parseFloat(taskLitersInput.value) * 1000) / 1000;
+        const price = Math.round(parseFloat(taskPriceInput.value) * 1000) / 1000;
+        
+        const newEntry = {
+            // taskKmInput corresponde a task_name en la base de datos
+            task_name: taskKmInput.value, 
+            task_date: taskDateInput.value,
+            litros: liters,
+            precio: price
+        };
+        
+        const { error } = await supabase.from(TABLE_NAME).insert([newEntry]); 
+
+        if (error) throw error;
+        
+        console.log("Carga registrada con éxito en Supabase.");
+        
+        form.reset();
+        setTodayDate(); // Vuelve a establecer la fecha de la máquina
+        taskKmInput.focus();
+        // Si el usuario estaba en histórico, recargar para mostrar el nuevo registro
+        if (document.getElementById('view-historico').classList.contains('active')) {
+             loadAndProcessData();
+        }
+
+    } catch (error) {
+        console.error("Error al guardar la carga: ", error.message);
+        alert("Error al guardar la carga. Revisa la consola.");
     }
 });
 
-// Cargar datos y actualizar la interfaz al iniciar
-loadData();
-updateUI();
+
+// ----------------------------------------------------------------
+// INICIO: Carga el Histórico y establece la fecha de la máquina
+// ----------------------------------------------------------------
+
+document.addEventListener('DOMContentLoaded', () => {
+    setTodayDate(); // 1. Establece la fecha actual en el campo de carga
+    // 2. Muestra el Histórico por defecto (y carga los datos)
+    showView('view-historico', 'nav-historico'); 
+});
